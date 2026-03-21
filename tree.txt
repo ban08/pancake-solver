@@ -1,0 +1,121 @@
+.
+├── pancake-check
+│   ├── README.md
+│   ├── requirements.txt
+│   ├── src
+│   │   ├── __init__.py
+│   │   ├── __pycache__
+│   │   │   ├── __init__.cpython-314.pyc
+│   │   │   └── main.cpython-314.pyc
+│   │   ├── core
+│   │   │   ├── __init__.py
+│   │   │   ├── __pycache__
+│   │   │   │   ├── __init__.cpython-314.pyc
+│   │   │   │   ├── benchmark.cpython-314.pyc
+│   │   │   │   ├── gui.cpython-314.pyc
+│   │   │   │   ├── heuristics.cpython-314.pyc
+│   │   │   │   ├── io.cpython-314.pyc
+│   │   │   │   ├── node.cpython-314.pyc
+│   │   │   │   ├── pancake_state.cpython-314.pyc
+│   │   │   │   ├── search.cpython-314.pyc
+│   │   │   │   └── state.cpython-314.pyc
+│   │   │   ├── heuristics.py
+│   │   │   ├── io.py
+│   │   │   ├── node.py
+│   │   │   ├── search.py
+│   │   │   └── state.py
+│   │   ├── main.py
+│   │   └── search
+│   │       ├── __init__.py
+│   │       ├── __pycache__
+│   │       │   ├── __init__.cpython-314.pyc
+│   │       │   ├── astar.cpython-314.pyc
+│   │       │   ├── bfs.cpython-314.pyc
+│   │       │   ├── dfs.cpython-314.pyc
+│   │       │   ├── greedy.cpython-314.pyc
+│   │       │   ├── ids.cpython-314.pyc
+│   │       │   ├── search_result.cpython-314.pyc
+│   │       │   ├── ucs.cpython-314.pyc
+│   │       │   └── weighted_astar.cpython-314.pyc
+│   │       ├── astar.py
+│   │       ├── bfs.py
+│   │       ├── dfs.py
+│   │       ├── greedy.py
+│   │       ├── ids.py
+│   │       ├── ucs.py
+│   │       └── weighted_astar.py
+│   └── structure.txt
+├── pancake-final
+│   ├── README.md
+│   ├── instances
+│   │   ├── easy
+│   │   │   ├── p1.txt
+│   │   │   ├── p2.txt
+│   │   │   ├── p3.txt
+│   │   │   ├── p4.txt
+│   │   │   ├── p5.txt
+│   │   │   └── p6.txt
+│   │   ├── hard
+│   │   │   ├── p1.txt
+│   │   │   ├── p2.txt
+│   │   │   ├── p3.txt
+│   │   │   ├── p4.txt
+│   │   │   ├── p5.txt
+│   │   │   └── p6.txt
+│   │   └── medium
+│   │       ├── p1.txt
+│   │       ├── p2.txt
+│   │       ├── p3.txt
+│   │       ├── p4.txt
+│   │       ├── p5.txt
+│   │       └── p6.txt
+│   ├── requirements.txt
+│   ├── results
+│   │   └── benchmark_results.csv
+│   └── src
+│       ├── __init__.py
+│       ├── __pycache__
+│       │   ├── __init__.cpython-314.pyc
+│       │   └── main.cpython-314.pyc
+│       ├── core
+│       │   ├── __init__.py
+│       │   ├── __pycache__
+│       │   │   ├── __init__.cpython-314.pyc
+│       │   │   ├── benchmark.cpython-314.pyc
+│       │   │   ├── gui.cpython-314.pyc
+│       │   │   ├── heuristics.cpython-314.pyc
+│       │   │   ├── io.cpython-314.pyc
+│       │   │   ├── node.cpython-314.pyc
+│       │   │   ├── pancake_state.cpython-314.pyc
+│       │   │   ├── search.cpython-314.pyc
+│       │   │   └── state.cpython-314.pyc
+│       │   ├── benchmark.py
+│       │   ├── gui.py
+│       │   ├── heuristics.py
+│       │   ├── io.py
+│       │   ├── node.py
+│       │   ├── search.py
+│       │   └── state.py
+│       ├── main.py
+│       └── search
+│           ├── __init__.py
+│           ├── __pycache__
+│           │   ├── __init__.cpython-314.pyc
+│           │   ├── astar.cpython-314.pyc
+│           │   ├── bfs.cpython-314.pyc
+│           │   ├── dfs.cpython-314.pyc
+│           │   ├── greedy.cpython-314.pyc
+│           │   ├── ids.cpython-314.pyc
+│           │   ├── search_result.cpython-314.pyc
+│           │   ├── ucs.cpython-314.pyc
+│           │   └── weighted_astar.cpython-314.pyc
+│           ├── astar.py
+│           ├── bfs.py
+│           ├── dfs.py
+│           ├── greedy.py
+│           ├── ids.py
+│           ├── ucs.py
+│           └── weighted_astar.py
+└── tree.txt
+
+20 directories, 99 files
