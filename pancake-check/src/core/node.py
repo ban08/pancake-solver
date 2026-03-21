@@ -11,14 +11,25 @@ class Node:
     """
     Represents a node in the search tree.
 
+    Notes:
+    - Nodes form a linked structure via the `parent` reference
+    - `move` represents the flip applied to reach this state
+    - Cost values (g, h, f) support different search strategies
+
     Each node stores the current state and the information
     required to reconstruct the solution path.
     """
 
+    # Core node data
     state: PancakeState
     parent: Optional["Node"] = None
     move: Optional[int] = None
 
+    # Search-related values
+    # g = path cost from root
+    # h = heuristic estimate to goal
+    # f = evaluation function (typically g + h)
+    # depth = number of steps from root
     g: int = 0  # path cost
     h: int = 0  # heuristic value
     f: int = 0  # evaluation function (g + h)
@@ -28,9 +39,11 @@ class Node:
         """
         Initialize derived values (depth and f).
         """
+        # Compute depth based on parent
         if self.parent is not None:
             self.depth = self.parent.depth + 1
 
+        # Default evaluation (can be overridden externally if needed, e.g., Weighted A*)
         self.f = self.g + self.h
 
     # -----------------------------------------------------
@@ -44,6 +57,7 @@ class Node:
         moves: List[int] = []
         current: Optional[Node] = self
 
+        # Traverse back through parents collecting moves
         while current is not None:
             if current.move is not None:
                 moves.append(current.move)
@@ -58,6 +72,7 @@ class Node:
         states: List[PancakeState] = []
         current: Optional[Node] = self
 
+        # Traverse back through parents collecting states
         while current is not None:
             states.append(current.state)
             current = current.parent
@@ -72,6 +87,7 @@ class Node:
         """
         Comparison for priority queues (heapq).
         """
+        # Compare nodes based on priority (f first, then h, then g)
         return (self.f, self.h, self.g) < (other.f, other.h, other.g)
 
     # -----------------------------------------------------
@@ -79,6 +95,7 @@ class Node:
     # -----------------------------------------------------
 
     def __repr__(self) -> str:
+        # Debug-friendly representation of the node
         return (
             f"Node(state={self.state}, move={self.move}, "
             f"g={self.g}, h={self.h}, f={self.f}, depth={self.depth})"

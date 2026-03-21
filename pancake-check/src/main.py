@@ -1,13 +1,24 @@
 from __future__ import annotations
 
+"""
+Main entry point for the Pancake Solver (checkpoint version).
+
+This file provides a simple terminal interface to:
+- Select a predefined puzzle (easy / medium / hard)
+- Choose a search algorithm
+- Execute it and display results
+
+Design notes:
+- Games are embedded directly (no file I/O for checkpoint)
+- Algorithms are mapped in a registry for clean selection
+- Heuristics are injected only where needed (Greedy, A*, Weighted A*)
+"""
+
 import sys
 from pathlib import Path
 from typing import Callable
 
-# Allow running with either:
-#   python3 src/main.py
-# or:
-#   python3 -m src.main
+# Ensure imports work whether running as a module or script
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
 if str(PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(PROJECT_ROOT))
@@ -26,12 +37,15 @@ from src.core.state import PancakeState
 SearchFunction = Callable[[object], object]
 
 
+# Predefined puzzle instances (checkpoint simplification: no external files)
 GAMES: dict[str, tuple[str, PancakeState]] = {
     "1": ("easy", PancakeState([2, 1, 3, 4])),
     "2": ("medium", PancakeState([3, 1, 4, 2, 5])),
     "3": ("hard", PancakeState([4, 1, 3, 6, 2, 5])),
 }
 
+# Algorithm registry: maps menu options to (name, function)
+# Lambdas are used where additional parameters (heuristic, weight) are required
 ALGORITHMS: dict[str, tuple[str, SearchFunction]] = {
     "1": ("BFS", bfs),
     "2": ("DFS", dfs),
@@ -46,6 +60,7 @@ ALGORITHMS: dict[str, tuple[str, SearchFunction]] = {
 }
 
 
+# Prompt user to choose one of the predefined games
 def select_game_key() -> str:
     print("\nAvailable games:")
     for key, (label, _) in GAMES.items():
@@ -74,6 +89,7 @@ def select_algorithm() -> str:
         print("Please enter a valid number from 1 to 8.")
 
 
+# Format and display the result returned by a search algorithm
 def print_result(result) -> None:
     """
     Print a search result in a clean terminal format.
@@ -86,6 +102,7 @@ def print_result(result) -> None:
         print(f"  {state}")
 
 
+# Execute a single algorithm selected by the user
 def run_single_algorithm(algorithm_key: str, initial_state) -> None:
     """
     Run one selected algorithm and print its result.
@@ -96,6 +113,7 @@ def run_single_algorithm(algorithm_key: str, initial_state) -> None:
     print_result(result)
 
 
+# Execute all algorithms sequentially (useful for comparison)
 def run_all_algorithms(initial_state) -> None:
     """
     Run all available algorithms and print each result.
@@ -110,14 +128,17 @@ def main() -> None:
     """
     print("Pancake Solver")
 
+    # Step 1: choose problem instance
     game_key = select_game_key()
     selected_game_name, initial_state = GAMES[game_key]
 
     print(f"\nSelected game: {selected_game_name}")
     print(f"Initial state: {initial_state}")
 
+    # Step 2: choose algorithm(s)
     selected_algorithm = select_algorithm()
 
+    # Step 3: execute selection
     if selected_algorithm == "8":
         run_all_algorithms(initial_state)
     else:

@@ -13,12 +13,19 @@ def dfs(initial_state: PancakeState) -> SearchResult:
 
     Explores deepest nodes first using a stack.
     Does not guarantee optimal solutions.
+
+    Notes:
+    - Uses a LIFO stack (last-in, first-out)
+    - Can explore very deep paths before finding a solution
     """
 
+    # Start timer for performance measurement
     start_time = time.perf_counter()
 
+    # Initialize root node (starting state)
     root = Node(state=initial_state, g=0)
 
+    # Handle trivial case where initial state is already the goal
     if initial_state.is_goal():
         return SearchResult(
             solved=True,
@@ -32,22 +39,30 @@ def dfs(initial_state: PancakeState) -> SearchResult:
             algorithm_name="DFS",
         )
 
+    # Frontier is a stack (depth-first exploration)
     frontier: list[Node] = [root]  # stack
+    # Track visited states to avoid revisiting and infinite loops
     visited: set[PancakeState] = set()
 
+    # Tracking performance metrics
     nodes_expanded = 0
     nodes_generated = 1
     max_frontier_size = 1
 
     while frontier:
+        # Pop the most recently added node (LIFO order)
         node = frontier.pop()
 
+        # Skip already visited states
         if node.state in visited:
             continue
 
+        # Mark state as visited
         visited.add(node.state)
+        # Count node expansion
         nodes_expanded += 1
 
+        # Check if goal is reached
         if node.state.is_goal():
             moves = node.solution_moves()
             states = node.solution_states()
@@ -64,10 +79,13 @@ def dfs(initial_state: PancakeState) -> SearchResult:
                 algorithm_name="DFS",
             )
 
+        # Expand successors (all possible flips)
         for move, successor_state in node.state.get_successors():
+            # Skip successors already visited
             if successor_state in visited:
                 continue
 
+            # Create node for successor
             child = Node(
                 state=successor_state,
                 parent=node,
@@ -75,11 +93,15 @@ def dfs(initial_state: PancakeState) -> SearchResult:
                 g=node.g + 1,
             )
 
+            # Push successor onto stack
             frontier.append(child)
+            # Count generated node
             nodes_generated += 1
 
+        # Track maximum frontier size
         max_frontier_size = max(max_frontier_size, len(frontier))
 
+    # Return failure if no solution is found
     return SearchResult(
         solved=False,
         solution_moves=[],

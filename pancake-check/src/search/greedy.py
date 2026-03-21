@@ -20,16 +20,23 @@ def greedy(
         f(n) = h(n)
 
     Fast, but not optimal.
+
+    Notes:
+    - Uses a priority queue ordered only by heuristic h(n)
+    - Ignores path cost g(n), so it may find suboptimal solutions
     """
 
+    # Start timer for performance measurement
     start_time = time.perf_counter()
 
+    # Initialize root node with heuristic value
     root = Node(
         state=initial_state,
         g=0,
         h=heuristic(initial_state),
     )
 
+    # Handle trivial case where initial state is already the goal
     if initial_state.is_goal():
         return SearchResult(
             solved=True,
@@ -44,24 +51,32 @@ def greedy(
             heuristic_name=heuristic.__name__,
         )
 
+    # Frontier is a priority queue ordered by h(n) (via Node.f)
     frontier: list[Node] = [root]
     heapq.heapify(frontier)
 
+    # Track visited states to avoid revisiting
     visited: set[PancakeState] = set()
 
+    # Tracking performance metrics
     nodes_expanded = 0
     nodes_generated = 1
     max_frontier_size = 1
 
     while frontier:
+        # Extract node with lowest heuristic value
         node = heapq.heappop(frontier)
 
+        # Skip already visited states
         if node.state in visited:
             continue
 
+        # Mark state as visited
         visited.add(node.state)
+        # Count node expansion
         nodes_expanded += 1
 
+        # Check if goal is reached
         if node.state.is_goal():
             moves = node.solution_moves()
             states = node.solution_states()
@@ -79,10 +94,13 @@ def greedy(
                 heuristic_name=heuristic.__name__,
             )
 
+        # Expand successors (all possible flips)
         for move, successor_state in node.state.get_successors():
+            # Skip successors already visited
             if successor_state in visited:
                 continue
 
+            # Create node for successor (heuristic-driven)
             child = Node(
                 state=successor_state,
                 parent=node,
@@ -91,11 +109,15 @@ def greedy(
                 h=heuristic(successor_state),
             )
 
+            # Add successor to frontier
             heapq.heappush(frontier, child)
+            # Count generated node
             nodes_generated += 1
 
+        # Track maximum frontier size
         max_frontier_size = max(max_frontier_size, len(frontier))
 
+    # Return failure if no solution is found
     return SearchResult(
         solved=False,
         solution_moves=[],
