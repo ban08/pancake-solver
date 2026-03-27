@@ -11,127 +11,92 @@ class Node:
     """
     Represents a node in the search tree.
 
-    Attributes
-    ----------
-    state : PancakeState
-        Current pancake puzzle configuration.
+    Notes:
+    - Nodes form a linked structure via the `parent` reference
+    - `move` represents the flip applied to reach this state
+    - Cost values (g, h, f) support different search strategies
 
-    parent : Node | None
-        Parent node in the search tree.
-
-    move : int | None
-        Flip size used to reach this node.
-
-    g : int
-        Path cost from root to this node.
-
-    h : int
-        Heuristic estimate to goal.
-
-    f : int
-        Evaluation value used by informed searches.
-
-    depth : int
-        Depth of node in search tree.
+    Each node stores the current state and the information
+    required to reconstruct the solution path.
     """
 
+    # Core node data
     state: PancakeState
     parent: Optional["Node"] = None
     move: Optional[int] = None
 
-    g: int = 0
-    h: int = 0
-    f: int = 0
+    # Search-related values
+    # g = path cost from root
+    # h = heuristic estimate to goal
+    # f = evaluation function (typically g + h)
+    # depth = number of steps from root
+    g: int = 0  # path cost
+    h: int = 0  # heuristic value
+    f: int = 0  # evaluation function (g + h)
     depth: int = 0
-
-    # ---------------------------------------------------------
-    # Initialization
-    # ---------------------------------------------------------
 
     def __post_init__(self) -> None:
         """
-        Automatically compute f and depth when node is created.
+        Initialize derived values (depth and f).
         """
-
+        # Compute depth based on parent
         if self.parent is not None:
             self.depth = self.parent.depth + 1
 
+        # Default evaluation (can be overridden externally if needed, e.g., Weighted A*)
         self.f = self.g + self.h
 
-    # ---------------------------------------------------------
-    # Path reconstruction
-    # ---------------------------------------------------------
+    # -----------------------------------------------------
+    # Solution reconstruction
+    # -----------------------------------------------------
 
-    def build_path(self) -> List["Node"]:
+    def solution_moves(self) -> List[int]:
         """
-        Return the path from the root node to this node.
-        """
-        path: List[Node] = []
-        current: Optional[Node] = self
-
-        while current is not None:
-            path.append(current)
-            current = current.parent
-
-        path.reverse()
-        return path
-
-    def build_solution_moves(self) -> List[int]:
-        """
-        Return the sequence of flip moves from the root to this node.
+        Return the sequence of moves from root to this node.
         """
         moves: List[int] = []
         current: Optional[Node] = self
 
+        # Traverse back through parents collecting moves
         while current is not None:
             if current.move is not None:
                 moves.append(current.move)
             current = current.parent
 
-        moves.reverse()
-        return moves
+        return list(reversed(moves))
 
-    def build_solution_states(self) -> List[PancakeState]:
+    def solution_states(self) -> List[PancakeState]:
         """
-        Return the sequence of states from the root to this node.
+        Return the sequence of states from root to this node.
         """
         states: List[PancakeState] = []
         current: Optional[Node] = self
 
+        # Traverse back through parents collecting states
         while current is not None:
             states.append(current.state)
             current = current.parent
 
-        states.reverse()
-        return states
+        return list(reversed(states))
 
-    # ---------------------------------------------------------
-    # Priority queue ordering
-    # ---------------------------------------------------------
+    # -----------------------------------------------------
+    # Priority queue support
+    # -----------------------------------------------------
 
     def __lt__(self, other: "Node") -> bool:
         """
-        Ordering for heapq priority queues.
-
-        Priority order:
-        1) f
-        2) h
-        3) g
+        Comparison for priority queues (heapq).
         """
+        # Compare nodes based on priority (f first, then h, then g)
         return (self.f, self.h, self.g) < (other.f, other.h, other.g)
 
-    # ---------------------------------------------------------
-    # Debugging
-    # ---------------------------------------------------------
+    # -----------------------------------------------------
+    # Representation
+    # -----------------------------------------------------
 
     def __repr__(self) -> str:
+        # Debug-friendly representation of the node
         return (
-            "Node("
-            f"state={self.state!r}, "
-            f"move={self.move}, "
-            f"g={self.g}, "
-            f"h={self.h}, "
-            f"f={self.f}, "
-            f"depth={self.depth}"
-            ")"
+            f"Node(state={self.state}, move={self.move}, "
+            f"g={self.g}, h={self.h}, f={self.f}, depth={self.depth})"
         )

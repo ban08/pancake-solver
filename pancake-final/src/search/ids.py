@@ -1,123 +1,93 @@
 from __future__ import annotations
 
 import time
-from dataclasses import dataclass
 
 from src.core.node import Node
 from src.core.state import PancakeState
 from src.core.search import SearchResult
 
 
-@dataclass(slots=True)
-class DLSResult:
-    goal_node: Node | None
-    found: bool
-    cutoff: bool
-    nodes_expanded: int
-    nodes_generated: int
-    max_frontier_size: int
-
-
-def _recursive_dls(
-    node: Node,
-    limit: int,
-    path_states: set[PancakeState],
-) -> DLSResult:
+def _dls(node: Node, limit: int, path: set[PancakeState]):
     """
-    Recursive depth-limited search used by IDS.
+    Depth-limited DFS used by IDS.
 
-    Uses path-based cycle prevention instead of a global visited set,
-    so IDS preserves optimality on unit-cost problems.
+    Notes:
+    - Recursive depth-limited DFS used by IDS
+    - Returns goal node, flags (found/cutoff), and performance metrics
     """
 
+    # Check if current node is goal
     if node.state.is_goal():
-        return DLSResult(
-            goal_node=node,
-            found=True,
-            cutoff=False,
-            nodes_expanded=0,
-            nodes_generated=0,
-            max_frontier_size=1,
-        )
+        return node, True, False, 0, 0, 1  # goal, found, cutoff, metrics
 
+    # If depth limit reached, signal cutoff
     if limit == 0:
-        return DLSResult(
-            goal_node=None,
-            found=False,
-            cutoff=True,
-            nodes_expanded=0,
-            nodes_generated=0,
-            max_frontier_size=1,
-        )
+        return None, False, True, 0, 0, 1
 
+    # Tracking metrics for this subtree
     nodes_expanded = 1
     nodes_generated = 0
-    max_frontier_size = 1
+    max_frontier = 1
     cutoff_occurred = False
 
+    # Explore successors (depth-first)
     for move, successor_state in node.state.get_successors():
-        if successor_state in path_states:
+        # Avoid revisiting states in current path (cycle prevention)
+        if successor_state in path:
             continue
 
+        # Create child node for successor
         child = Node(
             state=successor_state,
             parent=node,
             move=move,
             g=node.g + 1,
-            h=0,
-            f=node.g + 1,
         )
 
         nodes_generated += 1
 
-        path_states.add(successor_state)
-        result = _recursive_dls(child, limit - 1, path_states)
-        path_states.remove(successor_state)
+        # Add to current path before recursion
+        path.add(successor_state)
+        # Recursive depth-limited search on child
+        goal, found, cutoff, e, g, f = _dls(child, limit - 1, path)
+        # Remove from path after recursion (backtracking)
+        path.remove(successor_state)
 
-        nodes_expanded += result.nodes_expanded
-        nodes_generated += result.nodes_generated
-        max_frontier_size = max(max_frontier_size, 1 + result.max_frontier_size)
+        # Accumulate metrics from subtree
+        nodes_expanded += e
+        nodes_generated += g
+        max_frontier = max(max_frontier, 1 + f)
 
-        if result.found:
-            return DLSResult(
-                goal_node=result.goal_node,
-                found=True,
-                cutoff=False,
-                nodes_expanded=nodes_expanded,
-                nodes_generated=nodes_generated,
-                max_frontier_size=max_frontier_size,
-            )
+        # If goal found, propagate result upward
+        if found:
+            return goal, True, False, nodes_expanded, nodes_generated, max_frontier
 
-        if result.cutoff:
+        # Track if any branch hit the depth limit
+        if cutoff:
             cutoff_occurred = True
 
-    return DLSResult(
-        goal_node=None,
-        found=False,
-        cutoff=cutoff_occurred,
-        nodes_expanded=nodes_expanded,
-        nodes_generated=nodes_generated,
-        max_frontier_size=max_frontier_size,
-    )
+    # Return whether cutoff occurred if no solution found
+    return None, False, cutoff_occurred, nodes_expanded, nodes_generated, max_frontier
 
 
 def ids(initial_state: PancakeState) -> SearchResult:
     """
-    Iterative Deepening Search for the Pancake Puzzle.
+    Iterative Deepening Search (IDS).
 
-    Repeatedly performs depth-limited DFS with increasing depth limits.
-    For unit-cost problems, IDS should return an optimal solution.
+    Finds optimal solutions for unit-cost problems.
+
+    Notes:
+    - Repeatedly applies depth-limited search with increasing depth
+    - Combines DFS space efficiency with BFS optimality
     """
 
+    # Start timer for performance measurement
     start_time = time.perf_counter()
 
-    root = Node(
-        state=initial_state,
-        g=0,
-        h=0,
-        f=0,
-    )
+    # Initialize root node
+    root = Node(state=initial_state, g=0)
 
+    # Handle trivial case where initial state is already goal
     if initial_state.is_goal():
         return SearchResult(
             solved=True,
@@ -129,55 +99,62 @@ def ids(initial_state: PancakeState) -> SearchResult:
             max_frontier_size=1,
             runtime_seconds=time.perf_counter() - start_time,
             algorithm_name="IDS",
-            heuristic_name=None,
         )
 
-    total_nodes_expanded = 0
-    total_nodes_generated = 1
-    overall_max_frontier_size = 1
-    depth_limit = 0
+    # Aggregate metrics across all depth iterations
+    total_expanded = 0
+    total_generated = 1
+    max_frontier_size = 1
+
+    # Initial depth limit
+    depth = 0
 
     while True:
-        path_states = {initial_state}
+        # Perform depth-limited search with current limit
 
-        result = _recursive_dls(root, depth_limit, path_states)
+        # Track current path to prevent cycles
+        path = {initial_state}
 
-        total_nodes_expanded += result.nodes_expanded
-        total_nodes_generated += result.nodes_generated
-        overall_max_frontier_size = max(
-            overall_max_frontier_size,
-            result.max_frontier_size,
+        # Run depth-limited search
+        goal, found, cutoff, expanded, generated, frontier = _dls(
+            root, depth, path
         )
 
-        if result.found and result.goal_node is not None:
-            solution_moves = result.goal_node.build_solution_moves()
-            solution_states = result.goal_node.build_solution_states()
+        # Accumulate metrics from this iteration
+        total_expanded += expanded
+        total_generated += generated
+        max_frontier_size = max(max_frontier_size, frontier)
+
+        # If solution found, return result
+        if found and goal is not None:
+            moves = goal.solution_moves()
+            states = goal.solution_states()
 
             return SearchResult(
                 solved=True,
-                solution_moves=solution_moves,
-                solution_states=solution_states,
-                solution_cost=len(solution_moves),
-                nodes_expanded=total_nodes_expanded,
-                nodes_generated=total_nodes_generated,
-                max_frontier_size=overall_max_frontier_size,
+                solution_moves=moves,
+                solution_states=states,
+                solution_cost=len(moves),
+                nodes_expanded=total_expanded,
+                nodes_generated=total_generated,
+                max_frontier_size=max_frontier_size,
                 runtime_seconds=time.perf_counter() - start_time,
                 algorithm_name="IDS",
-                heuristic_name=None,
             )
 
-        if not result.cutoff:
+        # If no cutoff occurred, search space fully explored
+        if not cutoff:
             return SearchResult(
                 solved=False,
                 solution_moves=[],
                 solution_states=[],
                 solution_cost=0,
-                nodes_expanded=total_nodes_expanded,
-                nodes_generated=total_nodes_generated,
-                max_frontier_size=overall_max_frontier_size,
+                nodes_expanded=total_expanded,
+                nodes_generated=total_generated,
+                max_frontier_size=max_frontier_size,
                 runtime_seconds=time.perf_counter() - start_time,
                 algorithm_name="IDS",
-                heuristic_name=None,
             )
 
-        depth_limit += 1
+        # Increase depth limit and repeat
+        depth += 1

@@ -11,16 +11,22 @@ from src.core.search import SearchResult
 
 def bfs(initial_state: PancakeState) -> SearchResult:
     """
-    Breadth-First Search for the pancake puzzle.
+    Breadth-First Search (BFS).
 
-    BFS guarantees the shortest solution (minimum number of flips)
-    because all actions have equal cost.
+    Notes:
+    - Explores nodes level by level using a FIFO queue
+    - Guarantees shortest path when all step costs are equal
+
+    Guarantees optimal solution in number of flips.
     """
 
+    # Start timer for performance measurement
     start_time = time.perf_counter()
 
-    root = Node(state=initial_state)
+    # Initialize root node (starting state)
+    root = Node(state=initial_state, g=0)
 
+    # Handle trivial case where initial state is already the goal
     if initial_state.is_goal():
         return SearchResult(
             solved=True,
@@ -28,60 +34,71 @@ def bfs(initial_state: PancakeState) -> SearchResult:
             solution_states=[initial_state],
             solution_cost=0,
             nodes_expanded=0,
-            nodes_generated=0,
+            nodes_generated=1,
             max_frontier_size=1,
             runtime_seconds=time.perf_counter() - start_time,
-            algorithm_name="BFS"
+            algorithm_name="BFS",
         )
 
+    # Frontier is a FIFO queue (breadth-first exploration)
     frontier = deque([root])
+    # Track visited states to avoid revisiting
     visited: Set[PancakeState] = {initial_state}
 
+    # Tracking performance metrics
     nodes_expanded = 0
     nodes_generated = 1
     max_frontier_size = 1
 
     while frontier:
+        # Dequeue next node (FIFO order)
         node = frontier.popleft()
+        # Count node expansion
         nodes_expanded += 1
 
-        for move, successor_state in node.state.get_successors():
+        # Check if goal is reached
+        if node.state.is_goal():
+            moves = node.solution_moves()
+            states = node.solution_states()
 
+            return SearchResult(
+                solved=True,
+                solution_moves=moves,
+                solution_states=states,
+                solution_cost=len(moves),
+                nodes_expanded=nodes_expanded,
+                nodes_generated=nodes_generated,
+                max_frontier_size=max_frontier_size,
+                runtime_seconds=time.perf_counter() - start_time,
+                algorithm_name="BFS",
+            )
+
+        # Expand successors (all possible flips)
+        for move, successor_state in node.state.get_successors():
+            # Skip already visited states
             if successor_state in visited:
                 continue
 
+            # Mark state as visited
             visited.add(successor_state)
 
+            # Create node for successor
             child = Node(
                 state=successor_state,
                 parent=node,
                 move=move,
-                g=node.g + 1
+                g=node.g + 1,
             )
 
+            # Add successor to frontier (end of queue)
+            frontier.append(child)
+            # Count generated node
             nodes_generated += 1
 
-            if successor_state.is_goal():
-
-                solution_moves = child.build_solution_moves()
-                solution_states = child.build_solution_states()
-
-                return SearchResult(
-                    solved=True,
-                    solution_moves=solution_moves,
-                    solution_states=solution_states,
-                    solution_cost=len(solution_moves),
-                    nodes_expanded=nodes_expanded,
-                    nodes_generated=nodes_generated,
-                    max_frontier_size=max_frontier_size,
-                    runtime_seconds=time.perf_counter() - start_time,
-                    algorithm_name="BFS"
-                )
-
-            frontier.append(child)
-
+        # Track maximum frontier size
         max_frontier_size = max(max_frontier_size, len(frontier))
 
+    # Return failure if no solution is found
     return SearchResult(
         solved=False,
         solution_moves=[],
@@ -91,5 +108,5 @@ def bfs(initial_state: PancakeState) -> SearchResult:
         nodes_generated=nodes_generated,
         max_frontier_size=max_frontier_size,
         runtime_seconds=time.perf_counter() - start_time,
-        algorithm_name="BFS"
+        algorithm_name="BFS",
     )
