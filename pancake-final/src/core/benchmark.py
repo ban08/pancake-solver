@@ -2,101 +2,120 @@ from __future__ import annotations
 
 import time
 from pathlib import Path
-from typing import Callable, Iterable, List
+from statistics import mean
+from typing import Iterable, List
 
-from src.core.state import PancakeState
-from src.core.io import load_puzzle, write_results_csv
-from src.core.heuristics import gap_heuristic
+from src.core.io import load_named_puzzles, write_named_results_csv
 from src.core.search import SearchResult, solve
+from src.core.state import PancakeState
 
 
 # ---------------------------------------------------------
-# Algorithm definition
+# Benchmark configuration
 # ---------------------------------------------------------
 
-Algorithm = Callable[[PancakeState], SearchResult]
+DEFAULT_ALGORITHMS: list[tuple[str, str | None, float | None]] = [
+    ("bfs", None, None),
+    ("dfs", None, None),
+    ("ucs", None, None),
+    ("ids", None, None),
+    ("greedy", "gap", None),
+    ("astar", "gap", None),
+    ("weighted_astar", "gap", 1.5),
+]
 
 
 # ---------------------------------------------------------
 # Run a single algorithm
 # ---------------------------------------------------------
 
+
 def run_algorithm(
     algorithm_name: str,
     initial_state: PancakeState,
     heuristic_name: str | None = None,
-    weight: float = 1.5,
+    weight: float | None = None,
 ) -> SearchResult:
     """
-    Run a search algorithm and measure runtime.
+    Run one search algorithm on a given initial state.
 
-    This uses the central `solve()` dispatcher so that
-    benchmark, GUI, and CLI share the same execution path.
+    The benchmark uses the shared `solve()` dispatcher so that CLI, GUI,
+    and benchmark execution all follow the same code path.
     """
+    start_time = time.perf_counter()
 
-    start = time.perf_counter()
-
-    if heuristic_name:
+    if heuristic_name is not None:
         from src.core.heuristics import get_heuristic
-        heuristic = get_heuristic(heuristic_name)
-        result = solve(initial_state, algorithm=algorithm_name, heuristic=heuristic, weight=weight)
-        result.heuristic_name = heuristic_name
+
+        heuristic_fn = get_heuristic(heuristic_name)
+
+        if weight is not None:
+            result = solve(
+                initial_state,
+                algorithm=algorithm_name,
+                heuristic=heuristic_fn,
+                weight=weight,
+            )
+        else:
+            result = solve(
+                initial_state,
+                algorithm=algorithm_name,
+                heuristic=heuristic_fn,
+            )
     else:
         result = solve(initial_state, algorithm=algorithm_name)
 
-    end = time.perf_counter()
+    end_time = time.perf_counter()
 
-    result.runtime_seconds = end - start
     result.algorithm_name = algorithm_name
+    result.heuristic_name = heuristic_name
+    result.runtime_seconds = end_time - start_time
 
     return result
 
 
 # ---------------------------------------------------------
-# Run all algorithms on one instance
+# Run all algorithms on one puzzle
 # ---------------------------------------------------------
 
-def run_benchmark_on_instance(instance_path: Path) -> List[SearchResult]:
+
+def run_benchmark_on_state(
+    initial_state: PancakeState,
+    algorithms: list[tuple[str, str | None, float | None]] | None = None,
+) -> List[SearchResult]:
     """
-    Run all algorithms on a single puzzle instance.
+    Run a benchmark over a single puzzle state.
     """
-
-    print(f"\nINSTANCE: {instance_path}")
-
-    initial_state = load_puzzle(instance_path)
-
-    algorithms = [
-        ("bfs", None),
-        ("dfs", None),
-        ("ucs", None),
-        ("ids", None),
-        ("greedy", "gap"),
-        ("astar", "gap"),
-        ("weighted_astar", "gap"),
-    ]
-
+    benchmark_algorithms = algorithms or DEFAULT_ALGORITHMS
     results: List[SearchResult] = []
 
-    for algo_name, heuristic in algorithms:
-        print(f"Running {algo_name}...")
-
-        if algo_name == "weighted_astar":
-            result = run_algorithm(
-                algo_name,
-                initial_state,
-                heuristic_name=heuristic,
-                weight=1.5,
-            )
-        else:
-            result = run_algorithm(
-                algo_name,
-                initial_state,
-                heuristic_name=heuristic,
-            )
-
+    for algorithm_name, heuristic_name, weight in benchmark_algorithms:
+        print(f"Running {algorithm_name}...")
+        result = run_algorithm(
+            algorithm_name=algorithm_name,
+            initial_state=initial_state,
+            heuristic_name=heuristic_name,
+            weight=weight,
+        )
         results.append(result)
 
-    print_results(results)
+    return results
+
+
+
+def run_benchmark_on_named_puzzle(
+    puzzle_name: str,
+    initial_state: PancakeState,
+    algorithms: list[tuple[str, str | None, float | None]] | None = None,
+) -> List[SearchResult]:
+    """
+    Run all benchmark algorithms on one named puzzle and print a summary.
+    """
+    print(f"\ngame: {puzzle_name}")
+    print(f"Initial state: {list(initial_state.pancakes)}")
+
+    results = run_benchmark_on_state(initial_state, algorithms)
+    print_results_table(results)
 
     return results
 
@@ -105,72 +124,143 @@ def run_benchmark_on_instance(instance_path: Path) -> List[SearchResult]:
 # Pretty console output
 # ---------------------------------------------------------
 
-def print_results(results: Iterable[SearchResult]) -> None:
-    """
-    Print benchmark results in a readable table.
-    """
 
+def print_results_table(results: Iterable[SearchResult]) -> None:
+    """
+    Print result rows in a readable fixed-width table.
+    """
     header = (
-        f"{'Algorithm':<15}"
+        f"{'Algorithm':<18}"
         f"{'Solved':<8}"
         f"{'Cost':<8}"
         f"{'Expanded':<12}"
         f"{'Generated':<12}"
         f"{'Frontier':<12}"
-        f"{'Time(s)':<10}"
+        f"{'Time(s)':<12}"
     )
 
     print("\n" + header)
     print("-" * len(header))
 
-    for r in results:
+    for result in results:
         print(
-            f"{r.algorithm_name:<15}"
-            f"{str(r.solved):<8}"
-            f"{r.solution_cost:<8}"
-            f"{r.nodes_expanded:<12}"
-            f"{r.nodes_generated:<12}"
-            f"{r.max_frontier_size:<12}"
-            f"{r.runtime_seconds:<10.6f}"
+            f"{result.algorithm_name:<18}"
+            f"{str(result.solved):<8}"
+            f"{str(result.solution_cost):<8}"
+            f"{str(result.nodes_expanded):<12}"
+            f"{str(result.nodes_generated):<12}"
+            f"{str(result.max_frontier_size):<12}"
+            f"{result.runtime_seconds:<12.6f}"
+        )
+
+
+
+def print_overall_summary(all_results: list[tuple[str, SearchResult]]) -> None:
+    """
+    Print an aggregate summary across all benchmarked puzzles.
+    """
+    if not all_results:
+        return
+
+    print("\nOVERALL SUMMARY")
+    print("-" * 80)
+
+    algorithm_names = sorted({result.algorithm_name for _, result in all_results})
+
+    summary_header = (
+        f"{'Algorithm':<18}"
+        f"{'Solved':<12}"
+        f"{'Avg Cost':<12}"
+        f"{'Avg Expanded':<16}"
+        f"{'Avg Time(s)':<12}"
+    )
+    print(summary_header)
+    print("-" * len(summary_header))
+
+    for algorithm_name in algorithm_names:
+        subset = [result for _, result in all_results if result.algorithm_name == algorithm_name]
+        solved_count = sum(1 for result in subset if result.solved)
+
+        avg_cost = mean(result.solution_cost for result in subset if result.solved) if any(result.solved for result in subset) else 0.0
+        avg_expanded = mean(result.nodes_expanded for result in subset)
+        avg_time = mean(result.runtime_seconds for result in subset)
+
+        print(
+            f"{algorithm_name:<18}"
+            f"{f'{solved_count}/{len(subset)}':<12}"
+            f"{avg_cost:<12.2f}"
+            f"{avg_expanded:<16.2f}"
+            f"{avg_time:<12.6f}"
         )
 
 
 # ---------------------------------------------------------
-# Run benchmark across instance directory
+# Benchmark directory runner
 # ---------------------------------------------------------
 
-def run_benchmark(instances_dir: str | Path, save_csv: bool = True) -> None:
+
+def run_benchmark(
+    games_dir: str | Path,
+    save_csv: bool = True,
+    recursive: bool = True,
+    output_file: str | Path = "results/benchmark_results.csv",
+    algorithms: list[tuple[str, str | None, float | None]] | None = None,
+) -> None:
     """
-    Run benchmarks on all instances inside a directory tree.
+    Run benchmarks for all puzzle files inside a directory.
+
+    Parameters
+    ----------
+    games_dir : str | Path
+        Directory containing puzzle files.
+
+    save_csv : bool
+        If True, export results to CSV.
+
+    recursive : bool
+        If True, also search subdirectories.
+
+    output_file : str | Path
+        CSV path used when `save_csv=True`.
+
+    algorithms : list[...] | None
+        Optional custom algorithm configuration.
     """
+    named_puzzles = load_named_puzzles(games_dir, recursive=recursive)
 
-    base_path = Path(instances_dir)
+    if not named_puzzles:
+        raise ValueError(f"No puzzle games found in {games_dir}")
 
-    if not base_path.exists():
-        raise FileNotFoundError(f"Instances directory not found: {base_path}")
+    output_path = Path(output_file)
+    if save_csv and output_path.exists():
+        output_path.unlink()
 
-    instance_files = sorted(base_path.rglob("*.txt"))
+    all_results: list[tuple[str, SearchResult]] = []
 
-    if not instance_files:
-        raise ValueError(f"No instance files found in {base_path}")
+    for puzzle_name, state in named_puzzles:
+        results = run_benchmark_on_named_puzzle(
+            puzzle_name=puzzle_name,
+            initial_state=state,
+            algorithms=algorithms,
+        )
 
-    output_file = Path("results") / "benchmark_results.csv"
-
-    if save_csv and output_file.exists():
-        output_file.unlink()
-
-    for instance_file in instance_files:
-
-        results = run_benchmark_on_instance(instance_file)
+        named_results = [(puzzle_name, result) for result in results]
+        all_results.extend(named_results)
 
         if save_csv:
-            instance_name = str(instance_file.relative_to(base_path))
-            write_results_csv(results, output_file, instance_name=instance_name)
+            write_named_results_csv(
+                named_results=named_results,
+                output_file=output_path,
+                append=True,
+            )
+
+    print_overall_summary(all_results)
 
 
 # ---------------------------------------------------------
 # Entry point
 # ---------------------------------------------------------
 
+
 if __name__ == "__main__":
-    run_benchmark("instances")
+    run_benchmark("games")
