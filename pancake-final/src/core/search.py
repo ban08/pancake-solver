@@ -34,6 +34,7 @@ class SearchResult:
     # Metadata about the algorithm used
     algorithm_name: str = ""
     heuristic_name: Optional[str] = None
+    timed_out: bool = False
 
     # Return number of moves in the solution
     def solution_length(self) -> int:
@@ -52,6 +53,7 @@ class SearchResult:
         lines.extend(
             [
                 f"Solved: {self.solved}",
+                f"Timed out: {self.timed_out}",
                 f"Solution cost: {self.solution_cost}",
                 f"Solution length: {self.solution_length()}",
                 f"Nodes expanded: {self.nodes_expanded}",
@@ -66,9 +68,9 @@ class SearchResult:
     # Compact debug representation
     def __repr__(self) -> str:
         return (
-            f"SearchResult(solved={self.solved}, cost={self.solution_cost}, "
-            f"expanded={self.nodes_expanded}, generated={self.nodes_generated}, "
-            f"time={self.runtime_seconds:.6f})"
+            f"SearchResult(solved={self.solved}, timed_out={self.timed_out}, "
+            f"cost={self.solution_cost}, expanded={self.nodes_expanded}, "
+            f"generated={self.nodes_generated}, time={self.runtime_seconds:.6f})"
         )
 
 

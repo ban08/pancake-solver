@@ -49,7 +49,7 @@ def main() -> None:
         elif choice == "2":
             print("Running benchmark...")
             try:
-                run_benchmark("games")
+                run_benchmark(PROJECT_ROOT / "games")
             except Exception as e:
                 print(f"Error running benchmark: {e}")
 
