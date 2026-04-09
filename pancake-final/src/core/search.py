@@ -27,6 +27,7 @@ class SearchResult:
     nodes_expanded: int = 0
     nodes_generated: int = 0
     max_frontier_size: int = 0
+    memory_used_bytes: int = 0
 
     # Execution time
     runtime_seconds: float = 0.0
@@ -59,6 +60,8 @@ class SearchResult:
                 f"Nodes expanded: {self.nodes_expanded}",
                 f"Nodes generated: {self.nodes_generated}",
                 f"Max frontier size: {self.max_frontier_size}",
+                f"Memory used (bytes): {self.memory_used_bytes}",
+                f"Memory used (MB): {self.memory_used_bytes / (1024 * 1024):.6f}",
                 f"Runtime (seconds): {self.runtime_seconds:.6f}",
             ]
         )
@@ -70,7 +73,8 @@ class SearchResult:
         return (
             f"SearchResult(solved={self.solved}, timed_out={self.timed_out}, "
             f"cost={self.solution_cost}, expanded={self.nodes_expanded}, "
-            f"generated={self.nodes_generated}, time={self.runtime_seconds:.6f})"
+            f"generated={self.nodes_generated}, memory_bytes={self.memory_used_bytes}, "
+            f"time={self.runtime_seconds:.6f})"
         )
 
 

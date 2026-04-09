@@ -1,4 +1,3 @@
-
 from __future__ import annotations
 import sys
 
@@ -9,8 +8,10 @@ from pathlib import Path
 from statistics import mean
 from typing import Iterable, List
 
+import psutil
+
 # Ensure the project root is available on sys.path when running this file directly.
-PROJECT_ROOT = Path(__file__).resolve().parent.parent.parent
+PROJECT_ROOT = Path(__file__).resolve().parent.parent
 if str(PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(PROJECT_ROOT))
 
@@ -82,7 +83,6 @@ def _solve_in_worker(
         result_queue.put(("error", str(exc)))
 
 
-
 def _build_timeout_result(
     algorithm_name: str,
     heuristic_name: str | None,
@@ -99,12 +99,12 @@ def _build_timeout_result(
         nodes_expanded=0,
         nodes_generated=0,
         max_frontier_size=0,
+        memory_used_bytes=0,
         runtime_seconds=runtime_seconds,
         algorithm_name=algorithm_name,
         heuristic_name=heuristic_name,
         timed_out=True,
     )
-
 
 
 def _build_error_result(
@@ -123,6 +123,7 @@ def _build_error_result(
         nodes_expanded=0,
         nodes_generated=0,
         max_frontier_size=0,
+        memory_used_bytes=0,
         runtime_seconds=runtime_seconds,
         algorithm_name=algorithm_name,
         heuristic_name=heuristic_name,
@@ -153,6 +154,31 @@ def run_algorithm(
     """
     start_time = time.perf_counter()
 
+    def _peak_memory_of_process_tree(pid: int) -> int:
+        """
+        Return the current RSS of the worker process plus any live children.
+        """
+        try:
+            root = psutil.Process(pid)
+        except psutil.Error:
+            return 0
+
+        total_rss = 0
+        processes = [root]
+
+        try:
+            processes.extend(root.children(recursive=True))
+        except psutil.Error:
+            pass
+
+        for proc in processes:
+            try:
+                total_rss += proc.memory_info().rss
+            except psutil.Error:
+                continue
+
+        return total_rss
+
     if timeout_seconds is None:
         if heuristic_name is not None:
             from src.core.heuristics import get_heuristic
@@ -176,6 +202,11 @@ def run_algorithm(
             result = solve(initial_state, algorithm=algorithm_name)
 
         end_time = time.perf_counter()
+        current_process = psutil.Process()
+        try:
+            result.memory_used_bytes = current_process.memory_info().rss
+        except psutil.Error:
+            result.memory_used_bytes = 0
         result.algorithm_name = algorithm_name
         result.heuristic_name = heuristic_name
         result.runtime_seconds = end_time - start_time
@@ -190,35 +221,49 @@ def run_algorithm(
     )
 
     process.start()
-    process.join(timeout_seconds)
 
-    if process.is_alive():
-        process.terminate()
-        process.join()
-        elapsed = time.perf_counter() - start_time
-        result_queue.close()
-        return _build_timeout_result(
-            algorithm_name=algorithm_name,
-            heuristic_name=heuristic_name,
-            runtime_seconds=elapsed,
-        )
+    max_memory_bytes = 0
+    deadline = None if timeout_seconds is None else start_time + timeout_seconds
 
+    while process.is_alive():
+        max_memory_bytes = max(max_memory_bytes, _peak_memory_of_process_tree(process.pid))
+
+        if deadline is not None and time.perf_counter() >= deadline:
+            process.terminate()
+            process.join()
+            elapsed = time.perf_counter() - start_time
+            result_queue.close()
+            timeout_result = _build_timeout_result(
+                algorithm_name=algorithm_name,
+                heuristic_name=heuristic_name,
+                runtime_seconds=elapsed,
+            )
+            timeout_result.memory_used_bytes = max_memory_bytes
+            return timeout_result
+
+        time.sleep(0.01)
+
+    process.join()
+    max_memory_bytes = max(max_memory_bytes, _peak_memory_of_process_tree(process.pid))
     elapsed = time.perf_counter() - start_time
 
     try:
         status, payload = result_queue.get_nowait()
     except queue.Empty:
         result_queue.close()
-        return _build_error_result(
+        error_result = _build_error_result(
             algorithm_name=algorithm_name,
             heuristic_name=heuristic_name,
             runtime_seconds=elapsed,
         )
+        error_result.memory_used_bytes = max_memory_bytes
+        return error_result
     finally:
         result_queue.close()
 
     if status == "ok":
         result: SearchResult = payload
+        result.memory_used_bytes = max_memory_bytes
         result.algorithm_name = algorithm_name
         result.heuristic_name = heuristic_name
         result.runtime_seconds = elapsed
@@ -230,6 +275,7 @@ def run_algorithm(
         heuristic_name=heuristic_name,
         runtime_seconds=elapsed,
     )
+    error_result.memory_used_bytes = max_memory_bytes
     print(f"Worker error in {algorithm_name}: {payload}")
     return error_result
 
@@ -262,7 +308,6 @@ def run_benchmark_on_state(
         results.append(result)
 
     return results
-
 
 
 def run_benchmark_on_named_puzzle(
@@ -304,6 +349,7 @@ def print_results_table(results: Iterable[SearchResult]) -> None:
         f"{'Expanded':<12}"
         f"{'Generated':<12}"
         f"{'Frontier':<12}"
+        f"{'Memory(MB)':<14}"
         f"{'Time(s)':<12}"
     )
 
@@ -311,6 +357,7 @@ def print_results_table(results: Iterable[SearchResult]) -> None:
     print("-" * len(header))
 
     for result in results:
+        memory_mb = getattr(result, "memory_used_bytes", 0) / (1024 * 1024)
         print(
             f"{result.algorithm_name:<18}"
             f"{str(result.solved):<8}"
@@ -319,9 +366,9 @@ def print_results_table(results: Iterable[SearchResult]) -> None:
             f"{str(result.nodes_expanded):<12}"
             f"{str(result.nodes_generated):<12}"
             f"{str(result.max_frontier_size):<12}"
+            f"{memory_mb:<14.6f}"
             f"{result.runtime_seconds:<12.6f}"
         )
-
 
 
 def print_overall_summary(all_results: list[tuple[str, SearchResult]]) -> None:
@@ -332,7 +379,7 @@ def print_overall_summary(all_results: list[tuple[str, SearchResult]]) -> None:
         return
 
     print("\nOVERALL SUMMARY")
-    print("-" * 96)
+    print("-" * 110)
 
     algorithm_names = sorted({result.algorithm_name for _, result in all_results})
 
@@ -342,6 +389,7 @@ def print_overall_summary(all_results: list[tuple[str, SearchResult]]) -> None:
         f"{'Timeouts':<12}"
         f"{'Avg Cost':<12}"
         f"{'Avg Expanded':<16}"
+        f"{'Avg Memory(MB)':<18}"
         f"{'Avg Time(s)':<12}"
     )
     print(summary_header)
@@ -355,6 +403,7 @@ def print_overall_summary(all_results: list[tuple[str, SearchResult]]) -> None:
         solved_subset = [result for result in subset if result.solved]
         avg_cost = mean(result.solution_cost for result in solved_subset) if solved_subset else 0.0
         avg_expanded = mean(result.nodes_expanded for result in subset)
+        avg_memory_mb = mean(getattr(result, "memory_used_bytes", 0) for result in subset) / (1024 * 1024)
         avg_time = mean(result.runtime_seconds for result in subset)
 
         print(
@@ -363,6 +412,7 @@ def print_overall_summary(all_results: list[tuple[str, SearchResult]]) -> None:
             f"{timeout_count:<12}"
             f"{avg_cost:<12.2f}"
             f"{avg_expanded:<16.2f}"
+            f"{avg_memory_mb:<18.6f}"
             f"{avg_time:<12.6f}"
         )
 

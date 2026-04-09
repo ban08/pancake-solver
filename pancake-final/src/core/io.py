@@ -195,6 +195,7 @@ def write_results_csv(
         "nodes_expanded",
         "nodes_generated",
         "max_frontier_size",
+        "memory_used_bytes",
         "runtime_seconds",
     ]
 
@@ -220,6 +221,7 @@ def write_results_csv(
                     "nodes_expanded": result.nodes_expanded,
                     "nodes_generated": result.nodes_generated,
                     "max_frontier_size": result.max_frontier_size,
+                    "memory_used_bytes": result.memory_used_bytes,
                     "runtime_seconds": result.runtime_seconds,
                 }
             )
@@ -250,6 +252,7 @@ def write_named_results_csv(
         "nodes_expanded",
         "nodes_generated",
         "max_frontier_size",
+        "memory_used_bytes",
         "runtime_seconds",
     ]
 
@@ -275,6 +278,7 @@ def write_named_results_csv(
                     "nodes_expanded": result.nodes_expanded,
                     "nodes_generated": result.nodes_generated,
                     "max_frontier_size": result.max_frontier_size,
+                    "memory_used_bytes": result.memory_used_bytes,
                     "runtime_seconds": result.runtime_seconds,
                 }
             )
