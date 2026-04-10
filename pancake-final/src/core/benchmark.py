@@ -35,7 +35,7 @@ DEFAULT_ALGORITHMS: list[tuple[str, str | None, float | None]] = [
 ]
 
 # A safer default for real benchmarking.
-DEFAULT_TIMEOUT_SECONDS = 3.0
+DEFAULT_TIMEOUT_SECONDS = 10.0
 
 
 # ---------------------------------------------------------
