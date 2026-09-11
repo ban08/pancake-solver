@@ -20,7 +20,7 @@ python -m src.main        # menu: run the GUI or the benchmark
 
 ## What I built
 
-Group project for the Artificial Intelligence course (2025/26), built with a teammate whose account hosts the original repository. My contribution here is the **benchmarking and analysis** — the scripts that run the heuristics across many games and compare them. Because most commits were made from my teammate's account, the git history does not reflect the full split of the work.
+A group project for the Artificial Intelligence course (2025/26); the original repository is on a teammate's account. I was a supporting contributor — a small share of the overall work — focused on the **benchmarking and analysis** scripts that run the heuristics across many starting stacks and compare them. Most of the solver was written by teammates.
 
 ## What I would do differently
 
